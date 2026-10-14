@@ -1,0 +1,86 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CheckSumTool.ViewModels"
+        xmlns:controls="using:CheckSumTool.Controls"
+        x:Class="CheckSumTool.Views.SettingsWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Loc[SettingsTitle]}"
+        Width="480"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}"
+        Icon="/Assets/logo.png">
+
+  <Panel>
+
+    <Grid RowDefinitions="Auto,Auto">
+
+      <TextBlock Grid.Row="0" Text="{Binding Loc[SettingsTitle]}"
+                 FontSize="17" FontWeight="SemiBold" Margin="24,20,24,0" />
+
+      <StackPanel Grid.Row="1" Margin="24,18,24,24" Spacing="20">
+
+        <!-- 语言 -->
+        <StackPanel Spacing="7">
+          <TextBlock Text="{Binding Loc[SettingsLanguage]}" Classes="h2" />
+          <controls:SelectBox ItemsSource="{Binding LanguageOptions}"
+                              SelectedIndex="{Binding LanguageIndex}" />
+        </StackPanel>
+
+        <!-- 同时执行 -->
+        <StackPanel Spacing="7">
+          <TextBlock Text="{Binding Loc[SettingsParallelism]}" Classes="h2" />
+          <controls:SelectBox ItemsSource="{Binding ParallelismOptions}"
+                              SelectedIndex="{Binding ParallelismIndex}" />
+          <TextBlock Text="{Binding Loc[SettingsParallelismHint]}" Classes="muted" FontSize="11.5" />
+        </StackPanel>
+
+        <!--
+          关于软件：整行可点，跳转项目仓库。
+          内边距横向为 0，文字才与上方各标签左对齐；文本样式沿用 h2，与上方标签完全一致。
+        -->
+        <Button Classes="navrow" Padding="0,7" Command="{Binding OpenRepositoryCommand}">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Grid.Column="0" Text="{Binding Loc[SettingsAboutApp]}" Classes="h2"
+                       VerticalAlignment="Center" />
+            <!--
+              右箭头：与下拉列表同款 chevron（1.6 圆头描边）。
+              Margin 右 1 + Border 半宽 15 = 16，与上方 SelectBox 下拉箭头中心线
+              （内边距 11 + 半个箭头宽 5.3 ≈ 16.3）对齐。
+              hover 在箭头上出设置按钮同款圆形灰底，整行 hover/按下无底色。
+            -->
+            <Border Grid.Column="1" Classes="navarrow" Margin="0,0,1,0"
+                    VerticalAlignment="Center">
+              <Path Data="M0.5 0.5 L5 5 L0.5 9.5"
+                    StrokeThickness="1.6"
+                    StrokeLineCap="Round"
+                    StrokeJoin="Round"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </Grid>
+        </Button>
+
+        <!-- 版本号与「检查更新」同一行：版本在左，检查更新靠右下角 -->
+        <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource AppBorder}"
+                Padding="0,14,0,0">
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+            <TextBlock Grid.Column="0" Text="{Binding Loc[SettingsAbout]}" Classes="h2"
+                       VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding VersionText}" Classes="mono muted"
+                       FontSize="12" VerticalAlignment="Center" />
+            <Button Grid.Column="3" Classes="textaction" Padding="0,2"
+                    Content="{Binding Loc[SettingsCheckUpdate]}"
+                    Command="{Binding CheckUpdateCommand}"
+                    HorizontalAlignment="Right" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+      </StackPanel>
+    </Grid>
+
+    <!-- 轻提示：用设置窗口自己的一份，检查更新的结果提示不再落到主窗口上 -->
+    <controls:ToastHost DataContext="{Binding SettingsToast}" />
+
+  </Panel>
+</Window>

@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CheckSumTool.Controls.SelectBox">
+
+  <Button Name="RootButton" Classes="select">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBlock Name="LabelText" Grid.Column="0" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" />
+      <Path Grid.Column="1" VerticalAlignment="Center"
+            Data="M0.5 0.5 L5 5 L9.5 0.5"
+            Stroke="{DynamicResource AppTextMuted}"
+            StrokeThickness="1.6"
+            StrokeLineCap="Round"
+            StrokeJoin="Round" />
+    </Grid>
+
+    <Button.Flyout>
+      <!--
+        用 Bottom（水平居中）而不是 BottomEdgeAlignedLeft：
+        菜单宽度已同步为控件宽度，居中后内容边缘自然与控件对齐；
+        即便 FlyoutPresenter 模板里残留对称内边距，也不会造成左右偏移。
+      -->
+      <Flyout Placement="Bottom" VerticalOffset="2">
+        <Panel>
+          <Border Name="MenuHost" Classes="selectmenu" MinWidth="160" Margin="0,6,0,0" />
+          <Path Name="Arrow"
+                Data="M0,7 L6,0 L12,7 Z"
+                Fill="{DynamicResource AppSurface}"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                IsHitTestVisible="False" />
+        </Panel>
+      </Flyout>
+    </Button.Flyout>
+  </Button>
+
+</UserControl>

@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CheckSumTool.ViewModels"
+             x:Class="CheckSumTool.Controls.ToastHost"
+             x:DataType="vm:ToastPresenter"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Bottom"
+             Margin="0,0,0,14"
+             MaxWidth="560"
+             IsHitTestVisible="False">
+
+  <!-- 轻提示：底部居中、限宽，超长文案末尾省略 -->
+  <Border Classes="toast" IsVisible="{Binding IsVisible}">
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+      <!-- 成功：绿色对勾 -->
+      <Border Grid.Column="0" Width="18" Height="18" CornerRadius="9" Background="#67C23B"
+              VerticalAlignment="Center" IsVisible="{Binding !IsWarning}">
+        <Path Data="M0,5 L4,9 L11,1"
+              Stroke="#FFFFFF" StrokeThickness="2.2"
+              StrokeLineCap="Round" StrokeJoin="Round"
+              Width="11" Height="11" Stretch="Uniform"
+              HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+
+      <!-- 警告：红色感叹号 -->
+      <Border Grid.Column="0" Width="18" Height="18" CornerRadius="9" Background="#F56C6C"
+              VerticalAlignment="Center" IsVisible="{Binding IsWarning}">
+        <Panel>
+          <Rectangle Width="2.2" Height="6" RadiusX="1.1" RadiusY="1.1"
+                     Fill="#FFFFFF" VerticalAlignment="Top" Margin="0,3,0,0" />
+          <Ellipse Width="2.2" Height="2.2"
+                   Fill="#FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2.6" />
+        </Panel>
+      </Border>
+
+      <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="13"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                 ToolTip.Tip="{Binding Message}" />
+    </Grid>
+  </Border>
+</UserControl>

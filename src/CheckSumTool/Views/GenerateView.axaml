@@ -1,0 +1,168 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CheckSumTool.ViewModels"
+             x:Class="CheckSumTool.Views.GenerateView"
+             x:DataType="vm:GenerateViewModel">
+
+  <!--
+    行间距固定 12：面板高度不随「是否已加载文件」收缩，避免上下面板间距忽大忽小。
+    四行必须齐备（含进度卡片那一行）：行数少于子元素占用的行号时，Avalonia 会把多出来的
+    子元素挤进最后一行，进度卡片就会盖住输出设置卡片。
+  -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
+
+    <!-- ==================== 拖拽区 ==================== -->
+    <Border Grid.Row="0" Name="DropArea" Classes="dropzone" MinHeight="88">
+      <Panel>
+        <Rectangle Name="Dash"
+                   Stroke="{DynamicResource DropBorder}"
+                   StrokeThickness="1.5"
+                   StrokeDashArray="6,4"
+                   RadiusX="13" RadiusY="13" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"
+                    Margin="150,12">
+          <TextBlock Text="{Binding DropHint}" HorizontalAlignment="Center"
+                     FontWeight="Medium" FontSize="13" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Loc[DropSub]}" Classes="muted" FontSize="11.5"
+                     HorizontalAlignment="Center" IsVisible="{Binding !HasFiles}" />
+        </StackPanel>
+        <Button Classes="link" Content="{Binding Loc[SelectFolder]}"
+                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                Click="OnPickFolderClick" />
+      </Panel>
+    </Border>
+
+    <!-- ==================== 文件列表 ==================== -->
+    <!--
+      最小高度只留「一行」的余量：窗口压到最小尺寸时，三块面板的总高度需求会超过可用高度，
+      Grid 会把超出的部分平摊到各行、子元素溢出单元格，面板就贴到一起了（间距消失）。
+      这里把列表卡片的最小高度放低，让 * 行成为唯一被压缩的行，间距始终保留。
+    -->
+    <Border Grid.Row="1" Classes="card" Padding="10,10,10,6" MinHeight="60">
+      <Panel>
+        <ListBox ItemsSource="{Binding Files}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:SourceFileItem">
+              <Border Classes="row">
+                <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="10">
+                  <!-- 文件名 + 体积与目录 -->
+                  <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding FileName}" FontSize="12.5"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Tooltip}" />
+                    <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10.5"
+                               TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+
+                  <!-- 生成中显示：当前算法 + 单文件进度条 + 百分比 -->
+                  <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8"
+                        VerticalAlignment="Center" ClipToBounds="True">
+                    <!-- 当前正在计算的算法 -->
+                    <TextBlock Grid.Column="0" Text="{Binding CurrentFormat}"
+                               Classes="mono muted" FontSize="10.5"
+                               MinWidth="62" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding IsVerifying}" />
+
+                    <Grid Grid.Column="1" Height="6" VerticalAlignment="Center"
+                          IsVisible="{Binding IsVerifying}">
+                      <Border Classes="inlinetrack" />
+                      <Border Classes="inlinefill" RenderTransformOrigin="0,0">
+                        <Border.RenderTransform>
+                          <ScaleTransform ScaleX="{Binding Progress, Converter={StaticResource Pct}}" />
+                        </Border.RenderTransform>
+                      </Border>
+                    </Grid>
+
+                    <TextBlock Grid.Column="2" Text="{Binding ProgressText}"
+                               Classes="mono progressnum" FontSize="11"
+                               MinWidth="30" TextAlignment="Right"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding IsVerifying}" />
+
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
+                               Text="{Binding StatusText}"
+                               Foreground="{Binding StatusBrush}"
+                               FontSize="12" VerticalAlignment="Center"
+                               IsVisible="{Binding ShowStatusText}" />
+                  </Grid>
+
+                  <Button Grid.Column="2" Classes="icon" Content="✕"
+                          ToolTip.Tip="{Binding $parent[UserControl].((vm:GenerateViewModel)DataContext).Loc[Remove]}"
+                          Command="{Binding $parent[UserControl].((vm:GenerateViewModel)DataContext).RemoveFileCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
+                   Text="{Binding Loc[EmptyFiles]}" Classes="muted"
+                   IsVisible="{Binding !HasFiles}" />
+      </Panel>
+    </Border>
+
+    <!-- ==================== 输出设置 ==================== -->
+    <Border Grid.Row="2" Classes="card" Padding="14,12">
+      <!-- IsSharedSizeScope + SharedSizeGroup：两行标签列取较宽者，避免长文案被截断 -->
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="12" Grid.IsSharedSizeScope="True">
+        <!-- 文件名单独一行 -->
+        <Grid Grid.Row="0" ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="GenerateLabel" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="{Binding Loc[FileName]}" Classes="h2"
+                     VerticalAlignment="Center" />
+          <TextBox Grid.Column="1" Text="{Binding OutputBaseName}" MaxLength="120"
+                   Watermark="{Binding Loc[NameWatermark]}"
+                   VerticalAlignment="Center"
+                   IsEnabled="{Binding !IsRunning}"
+                   Classes.locked="{Binding IsRunning}"
+                   ToolTip.Tip="{Binding OutputLocationHint}" />
+        </Grid>
+
+        <!-- 输出格式复选项 -->
+        <Grid Grid.Row="1" ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="GenerateLabel" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="{Binding Loc[GenerateOutputFormats]}" Classes="h2"
+                     VerticalAlignment="Top" Margin="0,4,0,0" />
+          <StackPanel Grid.Column="1" Spacing="4" IsEnabled="{Binding !IsRunning}">
+            <ItemsControl ItemsSource="{Binding OutputFormats}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemWidth="205" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:GenerateFormatOption">
+                  <CheckBox Content="{Binding Label}"
+                            IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                            Margin="0,1,8,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- ==================== 进度（仅运行中显示；终止/空闲时整条隐藏） ==================== -->
+    <Border Grid.Row="3" Classes="card" Padding="14,10" IsVisible="{Binding IsRunning}">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+        <ProgressBar Grid.Column="0" Minimum="0" Maximum="100" Value="{Binding Progress}"
+                     VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding ProgressPercentText}"
+                   Classes="mono" Foreground="{DynamicResource Accent}"
+                   FontWeight="SemiBold" VerticalAlignment="Center"
+                   MinWidth="42" TextAlignment="Right" />
+        <Button Grid.Column="2" Classes="danger compact" Content="{Binding Loc[Stop]}"
+                Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" />
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>

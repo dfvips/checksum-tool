@@ -1,0 +1,413 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布使用的 tag 名（例如 v1.0.0）。留空则只构建产物、不创建 Release。"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  PROJECT: src/CheckSumTool/CheckSumTool.csproj
+  TEST_PROJECT: tests/CheckSumTool.Tests/CheckSumTool.Tests.csproj
+  # 项目 slug：用于发布包（zip）文件名前缀，如 checksum-tool-win-x64
+  PROJECT_SLUG: checksum-tool
+  # 对外显示名：Windows 单文件 exe / macOS .app / macOS .dmg 的文件名
+  PRODUCT_NAME: "文件校验工具"
+
+jobs:
+  # ================================================================== 单元测试
+  # 版本号在此统一生成一次（UTC 时间戳 YYYYMMDDHHMM），供后续构建步骤复用，
+  # 避免六个平台各自取时间导致版本号不一致。
+  test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            src/CheckSumTool/CheckSumTool.csproj
+            tests/CheckSumTool.Tests/CheckSumTool.Tests.csproj
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: echo "version=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: dotnet test ${{ env.TEST_PROJECT }} -c Release --verbosity normal
+
+  # ================================================================== 跨平台构建
+  build:
+    name: ${{ matrix.name }}
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: win-x86,   rid: win-x86,   os: windows-latest }
+          - { name: win-x64,   rid: win-x64,   os: windows-latest }
+          - { name: win-arm64, rid: win-arm64, os: windows-latest }
+          - { name: mac-x64,   rid: osx-x64,   os: macos-latest }
+          - { name: mac-arm64, rid: osx-arm64, os: macos-latest }
+          - { name: linux-x64, rid: linux-x64, os: ubuntu-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: src/CheckSumTool/CheckSumTool.csproj
+
+      # 版本号沿用 test 阶段生成的时间戳，保证六个包一致
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: echo "version=${{ needs.test.outputs.version }}" >> "$GITHUB_OUTPUT"
+
+      # ==================================================================
+      # 发布产物（内部二进制名仍为 CheckSumTool，对外文件名在打包阶段重命名）
+      #   • Windows：单文件可执行文件
+      #   • macOS / Linux：自包含单文件
+      # ==================================================================
+      # NuGet/MSBuild Version 必须是合法 SemVer；12 位时间戳通过 InformationalVersion 注入。
+      - name: Publish (${{ matrix.rid }})
+        shell: bash
+        run: |
+          dotnet publish "${{ env.PROJECT }}" \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false \
+            -p:Version=1.0.0 \
+            -p:InformationalVersion="${{ steps.ver.outputs.version }}" \
+            -p:IncludeSourceRevisionInInformationalVersion=false \
+            -o "publish/${{ matrix.rid }}"
+
+      # --------------------------- 冒烟测试 ---------------------------
+      - name: Smoke test (Windows)
+        # ARM64 目标无法在 x64 Windows runner 上执行；x86 与 x64 可在该 runner 上测试。
+        if: runner.os == 'Windows' && matrix.rid != 'win-arm64'
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "./publish/${{ matrix.rid }}/CheckSumTool.exe").Path
+          $process = Start-Process -FilePath $exe -ArgumentList "--version" -PassThru -Wait -NoNewWindow
+          Write-Host "Windows smoke test exit code: $($process.ExitCode)"
+          if ($process.ExitCode -ne 0) { throw "Windows 冒烟测试失败" }
+
+      - name: Smoke test (Linux)
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          chmod +x "publish/${{ matrix.rid }}/CheckSumTool"
+          "publish/${{ matrix.rid }}/CheckSumTool" --version
+
+      - name: Smoke test (macOS)
+        if: startsWith(matrix.rid, 'osx')
+        shell: bash
+        run: |
+          chmod +x "publish/${{ matrix.rid }}/CheckSumTool"
+          "publish/${{ matrix.rid }}/CheckSumTool" --version
+
+      # ==================================================================
+      # macOS：组装 .app 包 + 用 SIGNING_CERT 签名
+      #   SIGNING_CERT            必填（签名时）：base64 编码的 .p12 开发者证书
+      #   SIGNING_CERT_PASSWORD   可选：.p12 的导入密码，留空表示无密码
+      # Release 使用 SIGNING_CERT 提供的 codesigning identity；仅无 secrets 的外部 PR 允许 ad-hoc。
+      #   • .app 文件名 = "$PRODUCT_NAME.app"
+      # ==================================================================
+      - name: Assemble & sign macOS app bundle
+        if: startsWith(matrix.rid, 'osx')
+        shell: bash
+        env:
+          SIGNING_CERT: ${{ secrets.SIGNING_CERT }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          WORK="$(mktemp -d)"
+          APP="${WORK}/${PRODUCT_NAME}.app"
+
+          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+          cp -R "publish/${RID}/." "${APP}/Contents/MacOS/"
+          cp src/CheckSumTool/Assets/logo.icns "${APP}/Contents/Resources/logo.icns"
+          chmod +x "${APP}/Contents/MacOS/CheckSumTool"
+
+          cat > "${APP}/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>文件校验工具</string>
+            <key>CFBundleDisplayName</key><string>文件校验工具</string>
+            <key>CFBundleIdentifier</key><string>io.github.checksumtool.app</string>
+            <key>CFBundleExecutable</key><string>CheckSumTool</string>
+            <key>CFBundleIconFile</key><string>logo.icns</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>${{ steps.ver.outputs.version }}</string>
+            <key>CFBundleShortVersionString</key><string>${{ steps.ver.outputs.version }}</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+          </dict>
+          </plist>
+          PLIST
+
+          # ---------- 导入签名证书到临时钥匙串 ----------
+          SIGN_IDENTITY="-"
+          KEYCHAIN=""
+
+          if [[ -n "${SIGNING_CERT:-}" ]]; then
+            echo "==> 使用 GitHub Secrets 中的 SIGNING_CERT（Base64 PKCS#12）签名"
+            if [[ -z "${SIGNING_CERT_PASSWORD:-}" ]]; then
+              echo "::error::缺少 SIGNING_CERT_PASSWORD"
+              exit 1
+            fi
+            KEYCHAIN="${WORK}/build.keychain-db"
+            CERT_PATH="${WORK}/macos_cert.p12"
+
+            # 与已验证的 tauri-app workflow 一致：明确按 PKCS#12 导入证书及私钥。
+            printf '%s' "${SIGNING_CERT}" | base64 --decode > "${CERT_PATH}"
+            if [[ ! -s "${CERT_PATH}" ]]; then
+              echo "::error::SIGNING_CERT 解码后为空，请检查 Secret 是否为 .p12 的 Base64 内容"
+              exit 1
+            fi
+
+            security create-keychain -p "" "${KEYCHAIN}"
+            security set-keychain-settings -lut 21600 "${KEYCHAIN}"
+            security unlock-keychain -p "" "${KEYCHAIN}"
+            security import "${CERT_PATH}" -P "${SIGNING_CERT_PASSWORD}" \
+              -A -t cert -f pkcs12 -k "${KEYCHAIN}"
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" "${KEYCHAIN}"
+            security list-keychains -d user -s "${KEYCHAIN}"
+
+            # 与 tauri-app workflow 一致：直接从刚导入 p12 的 keychain 取首个签名 identity。
+            SIGN_IDENTITY="$(security find-identity -v -p codesigning "${KEYCHAIN}" | head -n 1 | awk '{print $2}')"
+            if [[ -z "${SIGN_IDENTITY}" ]]; then
+              echo "::error::PKCS#12 已导入，但该 keychain 中没有可用的 codesigning identity"
+              security find-identity -v -p codesigning "${KEYCHAIN}"
+              exit 1
+            fi
+            echo "==> 已选择 codesigning identity：${SIGN_IDENTITY}"
+          else
+            if [[ "${GITHUB_EVENT_NAME}" == "push" || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+              echo "::error::发布构建缺少 SIGNING_CERT，拒绝生成未签名的 macOS 产物"
+              exit 1
+            fi
+            SIGN_IDENTITY="-"
+            echo "::warning::非发布 PR 未提供 SIGNING_CERT，使用 ad-hoc 签名"
+          fi
+
+          # ---------- .NET Hardened Runtime entitlements（JIT / CoreCLR 必需） ----------
+          ENTITLEMENTS="${WORK}/dotnet.entitlements.plist"
+          cat > "${ENTITLEMENTS}" <<'ENTITLEMENTS_PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.security.cs.allow-jit</key><true/>
+            <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+            <key>com.apple.security.cs.allow-dyld-environment-variables</key><true/>
+            <key>com.apple.security.cs.disable-library-validation</key><true/>
+          </dict>
+          </plist>
+          ENTITLEMENTS_PLIST
+
+          # ---------- 用导入的 identity 签署并验证 .app ----------
+          if [[ "${SIGN_IDENTITY}" == "-" ]]; then
+            codesign --force --deep --options runtime --entitlements "${ENTITLEMENTS}" --sign "-" "${APP}"
+          else
+            codesign --force --deep --options runtime --timestamp --entitlements "${ENTITLEMENTS}" --sign "${SIGN_IDENTITY}" "${APP}"
+          fi
+          codesign --verify --deep --strict --verbose=2 "${APP}"
+          codesign -dv --verbose=4 "${APP}" 2>&1 | grep -E '^(Identifier|Authority|TeamIdentifier)='
+
+          # 与最终 AppHost 完全相同的打包后冒烟测试，确保 CoreCLR/JIT 可启动。
+          "${APP}/Contents/MacOS/CheckSumTool" --version
+
+          # ---------- 导出给后续步骤 ----------
+          echo "SIGN_IDENTITY=${SIGN_IDENTITY}" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PATH=${KEYCHAIN}" >> "$GITHUB_ENV"
+
+          rm -rf "publish/${RID}"
+          mkdir -p "publish/${RID}"
+          mv "${APP}" "publish/${RID}/${PRODUCT_NAME}.app"
+          echo "==> 已生成 publish/${RID}/${PRODUCT_NAME}.app"
+
+      # ==================================================================
+      # 打包（所有平台最终产物均为 zip，文件名 = checksum-tool-<name>.zip）
+      #   • Windows  → zip 内含 "$PRODUCT_NAME.exe"
+      #   • macOS    → dmg（文件名 "$PRODUCT_NAME.dmg"）再包进 zip
+      #   • Linux    → zip 内含可执行文件 "checksum-tool"
+      # ==================================================================
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $src = "publish/${{ matrix.rid }}/CheckSumTool.exe"
+          if (-not (Test-Path $src)) { throw "找不到 $src" }
+          $dest = "${{ env.PRODUCT_NAME }}.exe"
+          Copy-Item $src $dest -Force
+          $zip = "${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip"
+          Compress-Archive -Path $dest -DestinationPath $zip -Force
+          "已生成 {0}（{1:N1} MB）" -f $zip, ((Get-Item $zip).Length / 1MB) | Write-Host
+
+      - name: Package (macOS DMG + zip)
+        if: startsWith(matrix.rid, 'osx')
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          WORK="$(mktemp -d)"
+          STAGE="${WORK}/dmg"
+
+          mkdir -p "${STAGE}"
+          cp -R "publish/${RID}/${PRODUCT_NAME}.app" "${STAGE}/"
+          ln -s /Applications "${STAGE}/Applications"
+
+          DMG="$GITHUB_WORKSPACE/${PRODUCT_NAME}.dmg"
+          hdiutil create -volname "${PRODUCT_NAME}" -srcfolder "${STAGE}" -ov -format UDZO "${DMG}" > /dev/null
+
+          if [[ "${SIGN_IDENTITY}" != "-" ]]; then
+            codesign --force --timestamp --sign "${SIGN_IDENTITY}" "${DMG}"
+          else
+            codesign --force --sign "-" "${DMG}"
+          fi
+          codesign --verify --verbose=2 "${DMG}"
+          if [[ "${SIGN_IDENTITY}" != "-" ]]; then
+            codesign -dv --verbose=4 "${DMG}" 2>&1 | grep -E '^(Identifier|Authority|TeamIdentifier)='
+            echo "==> DMG 已由导入的 signing identity 签名并验证"
+          fi
+
+          ls -lh "${DMG}"
+
+          # 将 dmg 包进 zip（Release 统一为 zip）
+          ( cd "$GITHUB_WORKSPACE" && zip -qry "${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip" "${PRODUCT_NAME}.dmg" )
+          ls -lh "${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip"
+
+      - name: Package (Linux)
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "publish/${{ matrix.rid }}"
+          chmod +x CheckSumTool
+          mv CheckSumTool checksum-tool
+          zip -qry "$GITHUB_WORKSPACE/${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip" .
+          cd "$GITHUB_WORKSPACE"
+          ls -lh "${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip"
+
+      # --------------------------- 清理临时钥匙串 ---------------------------
+      - name: Delete temporary keychain
+        if: startsWith(matrix.rid, 'osx') && env.KEYCHAIN_PATH != ''
+        shell: bash
+        run: |
+          security delete-keychain "${KEYCHAIN_PATH}" || true
+          echo "==> 临时钥匙串已删除"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_SLUG }}-${{ matrix.name }}
+          path: ${{ env.PROJECT_SLUG }}-${{ matrix.name }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  # ================================================================== 发布 Release
+  # 触发条件（满足其一即发布）：
+  #   1. 推送到 main/master —— 自动编译并自动发布，tag = v<UTC 时间戳>（与构建版本号一致）
+  #   2. 推送 v* tag        —— 发布该 tag
+  #   3. 手动触发且填写 tag  —— 发布该 tag；留空则只构建
+  release:
+    name: publish release
+    needs: [test, build]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.tag != '') ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          count=0
+          while IFS= read -r f; do
+            cp -f "$f" "release/$(basename "$f")"
+            count=$((count+1))
+          done < <(find artifacts -type f -name '${{ env.PROJECT_SLUG }}-*.zip' | sort)
+
+          if [ "$count" -ne 6 ]; then
+            echo "::error::期望 6 个发布包，实际找到 $count 个"
+            exit 1
+          fi
+          echo "---- release assets ----"
+          ls -lh release
+
+      # 解析本次发布使用的 tag：
+      #   • workflow_dispatch 且填写了 tag → 用填写的 tag
+      #   • v* tag 推送                    → 用该 tag
+      #   • main/master 推送（自动发布）    → 用 a 的时间戳版本号（与 test 阶段一致，
+      #     保证 Release tag 与安装包 InformationalVersion 对得上）
+      - name: Resolve release tag
+        id: rel
+        shell: bash
+        env:
+          BUILD_VERSION: ${{ needs.test.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${BUILD_VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "本次发布 tag：$(grep '^tag=' "$GITHUB_OUTPUT" | cut -d= -f2)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          name: ${{ steps.rel.outputs.tag }}
+          # 自动发布（main 推送）时 tag 尚不存在，显式指向本次构建的提交；
+          # tag 推送时该值与 tag 自身指向一致，无副作用。
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: release/*

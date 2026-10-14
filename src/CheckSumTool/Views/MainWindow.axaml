@@ -1,0 +1,161 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CheckSumTool.ViewModels"
+        xmlns:views="using:CheckSumTool.Views"
+        xmlns:controls="using:CheckSumTool.Controls"
+        x:Class="CheckSumTool.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Loc[AppTitle]}"
+        Width="1120" Height="800"
+        MinWidth="940" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBg}"
+        Icon="/Assets/logo.png">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- ==================== 顶栏 ==================== -->
+    <Grid Grid.Row="0" Margin="22,16,22,0" ColumnDefinitions="Auto,*,Auto">
+
+      <StackPanel Orientation="Horizontal" Spacing="12">
+
+        <!-- 应用标识 -->
+        <Image Source="/Assets/logo.png" Width="46" Height="46"
+               RenderOptions.BitmapInterpolationMode="HighQuality" />
+
+        <StackPanel VerticalAlignment="Center" Spacing="3">
+          <TextBlock Text="{Binding Loc[AppTitle]}" FontSize="15" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Loc[AppSubtitle]}" Classes="muted" FontSize="11.5" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+
+        <!-- 主题：点击在 跟随系统 / 浅色 / 深色 之间循环 -->
+        <Button Name="ThemeButton" Classes="round" Click="OnThemeToggle"
+                ToolTip.Tip="{Binding Loc[ThemeTooltip]}">
+          <Viewbox Width="19" Height="19">
+            <Panel Width="24" Height="24">
+
+              <!-- 跟随系统：半明半暗圆（两个 Path 共用同一坐标系，避免缩放错位） -->
+              <Panel IsVisible="{Binding IsSystemTheme}">
+                <Path Data="M12 2.6 A9.4 9.4 0 1 1 12 21.4 Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                <Path Data="M12 2.6 A9.4 9.4 0 1 0 12 21.4 A9.4 9.4 0 1 0 12 2.6 Z"
+                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.9"
+                      Fill="Transparent"
+                      Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" />
+              </Panel>
+
+              <!-- 浅色：太阳 -->
+              <Path IsVisible="{Binding IsLightTheme}"
+                    Data="M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z M12 1.6 V4.4 M12 19.6 V22.4 M1.6 12 H4.4 M19.6 12 H22.4 M4.65 4.65 L6.63 6.63 M17.37 17.37 L19.35 19.35 M19.35 4.65 L17.37 6.63 M6.63 17.37 L4.65 19.35"
+                    Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.9"
+                    StrokeLineCap="Round" Fill="Transparent"
+                    Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" />
+
+              <!-- 深色：月亮 -->
+              <Path IsVisible="{Binding IsDarkTheme}"
+                    Data="M21 12.79 A9 9 0 1 1 11.21 3 A7 7 0 0 0 21 12.79 Z"
+                    Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
+                    StrokeJoin="Round" Fill="Transparent"
+                    Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top" />
+            </Panel>
+          </Viewbox>
+        </Button>
+
+        <!-- 设置 -->
+        <Button Classes="round" Click="OnSettingsClick"
+                ToolTip.Tip="{Binding Loc[Settings]}">
+          <Viewbox Width="19" Height="19">
+            <Panel Width="24" Height="24">
+              <Path Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Stroke="{Binding $parent[Button].Foreground}"
+                    StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
+                    Fill="Transparent"
+                    Data="M12 15.5 A3.5 3.5 0 1 1 12 8.5 A3.5 3.5 0 1 1 12 15.5 Z M19.4 15 a1.65 1.65 0 0 0 .33 1.82 l.06 .06 a2 2 0 0 1 0 2.83 a2 2 0 0 1 -2.83 0 l-.06-.06 a1.65 1.65 0 0 0 -1.82-.33 a1.65 1.65 0 0 0 -1 1.51 V21 a2 2 0 0 1 -2 2 a2 2 0 0 1 -2-2 v-.09 A1.65 1.65 0 0 0 9 19.4 a1.65 1.65 0 0 0 -1.82.33 l-.06 .06 a2 2 0 0 1 -2.83 0 a2 2 0 0 1 0-2.83 l.06-.06 a1.65 1.65 0 0 0 .33-1.82 a1.65 1.65 0 0 0 -1.51-1 H3 a2 2 0 0 1 -2-2 a2 2 0 0 1 2-2 h.09 A1.65 1.65 0 0 0 4.6 9 a1.65 1.65 0 0 0 -.33-1.82 l-.06-.06 a2 2 0 0 1 0-2.83 a2 2 0 0 1 2.83 0 l.06 .06 a1.65 1.65 0 0 0 1.82 .33 H9 a1.65 1.65 0 0 0 1-1.51 V3 a2 2 0 0 1 2-2 a2 2 0 0 1 2 2 v.09 a1.65 1.65 0 0 0 1 1.51 a1.65 1.65 0 0 0 1.82-.33 l.06-.06 a2 2 0 0 1 2.83 0 a2 2 0 0 1 0 2.83 l-.06 .06 a1.65 1.65 0 0 0 -.33 1.82 V9 a1.65 1.65 0 0 0 1.51 1 H21 a2 2 0 0 1 2 2 a2 2 0 0 1 -2 2 h-.09 a1.65 1.65 0 0 0 -1.51 1 z" />
+            </Panel>
+          </Viewbox>
+        </Button>
+
+      </StackPanel>
+    </Grid>
+
+    <!-- ==================== 功能切换 + 操作按钮 ==================== -->
+    <Grid Grid.Row="1" Margin="22,14,22,0" ColumnDefinitions="Auto,*,Auto">
+
+      <Border Grid.Column="0" Classes="segtrack" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal">
+          <RadioButton Classes="seg" GroupName="TabGroup" Content="{Binding Loc[TabVerify]}"
+                       IsChecked="{Binding IsVerifyTab}" />
+          <RadioButton Classes="seg" GroupName="TabGroup" Content="{Binding Loc[TabGenerate]}"
+                       IsChecked="{Binding IsGenerateTab}" />
+          <RadioButton Classes="seg" GroupName="TabGroup" Content="{Binding Loc[TabMerge]}"
+                       IsChecked="{Binding IsMergeTab}" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsVerifyTab}">
+          <Button Classes="outline" Content="{Binding Loc[ClearList]}"
+                  Command="{Binding Verify.ClearCommand}"
+                  IsEnabled="{Binding Verify.HasSources}" />
+          <Button Classes="primary" Content="{Binding Loc[StartVerify]}"
+                  Command="{Binding Verify.StartCommand}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsGenerateTab}">
+          <Button Classes="outline" Content="{Binding Loc[ClearList]}"
+                  Command="{Binding Generate.ClearCommand}"
+                  IsEnabled="{Binding Generate.HasFiles}" />
+          <Button Classes="primary" Content="{Binding Loc[StartGenerate]}"
+                  Command="{Binding Generate.StartCommand}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsMergeTab}">
+          <Button Classes="outline" Content="{Binding Loc[ClearList]}"
+                  Command="{Binding Merge.ClearCommand}"
+                  IsEnabled="{Binding Merge.HasFiles}" />
+          <Button Classes="primary" Content="{Binding Loc[ExportMerged]}"
+                  Command="{Binding Merge.MergeCommand}" />
+        </StackPanel>
+
+      </StackPanel>
+
+    </Grid>
+
+    <!-- ==================== 内容区 ==================== -->
+    <Panel Grid.Row="2" Margin="22,14,22,14">
+      <Border IsVisible="{Binding IsVerifyTab}">
+        <views:VerifyView DataContext="{Binding Verify}" />
+      </Border>
+      <Border IsVisible="{Binding IsGenerateTab}">
+        <views:GenerateView DataContext="{Binding Generate}" />
+      </Border>
+      <Border IsVisible="{Binding IsMergeTab}">
+        <views:MergeView DataContext="{Binding Merge}" />
+      </Border>
+
+      <!-- 轻提示（限宽，超长文案末尾省略） -->
+      <controls:ToastHost DataContext="{Binding Toast}" />
+    </Panel>
+
+    <!-- ==================== 状态栏 ==================== -->
+    <Border Grid.Row="3" Classes="statusbar" Padding="22,9">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,9,0"
+                 Fill="{DynamicResource Accent}" />
+        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="secondary" FontSize="12"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+
+        <!-- 校验统计（仅校验面板） -->
+        <TextBlock Grid.Column="2" Text="{Binding Verify.ResultSummary}"
+                   Classes="secondary" FontSize="12" VerticalAlignment="Center" Margin="14,0"
+                   IsVisible="{Binding ShowVerifySummary}" />
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

@@ -1,0 +1,117 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:CheckSumTool.Converters"
+             x:Class="CheckSumTool.App"
+             RequestedThemeVariant="Default">
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://CheckSumTool/Styles/Controls.axaml" />
+  </Application.Styles>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <!-- 行内进度（0~100）→ 缩放系数（0.0~1.0） -->
+      <conv:PercentToScaleConverter x:Key="Pct" />
+
+      <!--
+        Fluent 的 FlyoutPresenter 模板内层 Border 用的是
+        Padding="{DynamicResource FlyoutBorderThemePadding}"（硬编码资源，样式 setter 覆盖不到），
+        默认值会让弹出面板相对目标控件偏移 8px。这里清零，由 Border.selectmenu 自己控制内边距。
+      -->
+      <Thickness x:Key="FlyoutBorderThemePadding">0</Thickness>
+      <Thickness x:Key="FlyoutBorderThemeThickness">0</Thickness>
+
+      <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ============================ 浅色 ============================ -->
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppBg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AppSurface" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AppSurfaceAlt" Color="#F4F7FA" />
+          <SolidColorBrush x:Key="AppSurfaceHover" Color="#EAF3F8" />
+          <SolidColorBrush x:Key="AppBorder" Color="#E3EAF0" />
+          <SolidColorBrush x:Key="AppBorderStrong" Color="#CBD8E2" />
+          <SolidColorBrush x:Key="AppText" Color="#14202B" />
+          <SolidColorBrush x:Key="AppTextSecondary" Color="#5A6B7B" />
+          <SolidColorBrush x:Key="AppTextMuted" Color="#8C99A6" />
+
+          <SolidColorBrush x:Key="Accent" Color="#409EFF" />
+          <SolidColorBrush x:Key="AccentHover" Color="#66B1FF" />
+          <SolidColorBrush x:Key="AccentPressed" Color="#3A8EE6" />
+          <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#ECF5FF" />
+
+          <SolidColorBrush x:Key="Danger" Color="#F56B6C" />
+          <SolidColorBrush x:Key="DangerHover" Color="#F78989" />
+          <SolidColorBrush x:Key="DangerPressed" Color="#DD6161" />
+
+          <SolidColorBrush x:Key="PrimaryDisabledBg" Color="#ECF5FF" />
+          <SolidColorBrush x:Key="PrimaryDisabledBorder" Color="#A0CFFF" />
+          <SolidColorBrush x:Key="PrimaryDisabledText" Color="#A0CFFF" />
+
+          <SolidColorBrush x:Key="DangerDisabledBg" Color="#FDE2E2" />
+          <SolidColorBrush x:Key="DangerDisabledBorder" Color="#FAB6B6" />
+          <SolidColorBrush x:Key="DangerDisabledText" Color="#FAB6B6" />
+
+          <SolidColorBrush x:Key="SegTrack" Color="#F1F5F8" />
+          <SolidColorBrush x:Key="SegPill" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SegPillBorder" Color="#E1E8EF" />
+          <SolidColorBrush x:Key="SegText" Color="#5A6B7B" />
+
+          <SolidColorBrush x:Key="DropBgHover" Color="#ECF5FF" />
+          <SolidColorBrush x:Key="DropBorder" Color="#C7D6E1" />
+
+          <SolidColorBrush x:Key="ToastBg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ProgressTrack" Color="#E6EAF2" />
+          <SolidColorBrush x:Key="ScrollThumb" Color="#C9D5DF" />
+        </ResourceDictionary>
+
+        <!-- ============================ 深色 ============================ -->
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppBg" Color="#161616" />
+          <SolidColorBrush x:Key="AppSurface" Color="#1C1C1C" />
+          <SolidColorBrush x:Key="AppSurfaceAlt" Color="#222222" />
+          <SolidColorBrush x:Key="AppSurfaceHover" Color="#2A2A2A" />
+          <SolidColorBrush x:Key="AppBorder" Color="#2C2C2C" />
+          <SolidColorBrush x:Key="AppBorderStrong" Color="#3D3D3D" />
+          <SolidColorBrush x:Key="AppText" Color="#EDF2F6" />
+          <SolidColorBrush x:Key="AppTextSecondary" Color="#A5B1BB" />
+          <SolidColorBrush x:Key="AppTextMuted" Color="#78838D" />
+
+          <SolidColorBrush x:Key="Accent" Color="#409EFF" />
+          <SolidColorBrush x:Key="AccentHover" Color="#66B1FF" />
+          <SolidColorBrush x:Key="AccentPressed" Color="#3A8EE6" />
+          <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#17304A" />
+
+          <SolidColorBrush x:Key="Danger" Color="#F56B6C" />
+          <SolidColorBrush x:Key="DangerHover" Color="#F78989" />
+          <SolidColorBrush x:Key="DangerPressed" Color="#DD6161" />
+
+          <SolidColorBrush x:Key="PrimaryDisabledBg" Color="#1B2A3A" />
+          <SolidColorBrush x:Key="PrimaryDisabledBorder" Color="#2C4A6E" />
+          <SolidColorBrush x:Key="PrimaryDisabledText" Color="#4E7EA8" />
+
+          <SolidColorBrush x:Key="DangerDisabledBg" Color="#2E1E1E" />
+          <SolidColorBrush x:Key="DangerDisabledBorder" Color="#5A3232" />
+          <SolidColorBrush x:Key="DangerDisabledText" Color="#A06666" />
+
+          <SolidColorBrush x:Key="SegTrack" Color="#1F1F1F" />
+          <SolidColorBrush x:Key="SegPill" Color="#313131" />
+          <SolidColorBrush x:Key="SegPillBorder" Color="#3D3D3D" />
+          <SolidColorBrush x:Key="SegText" Color="#A5B1BB" />
+
+          <SolidColorBrush x:Key="DropBgHover" Color="#16283C" />
+          <SolidColorBrush x:Key="DropBorder" Color="#3A3A3A" />
+
+          <SolidColorBrush x:Key="ToastBg" Color="#2E2E2E" />
+          <SolidColorBrush x:Key="ProgressTrack" Color="#3A3A3A" />
+          <SolidColorBrush x:Key="ScrollThumb" Color="#3A3A3A" />
+        </ResourceDictionary>
+
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+</Application>

@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CheckSumTool.ViewModels"
+             x:Class="CheckSumTool.Views.VerifyView"
+             x:DataType="vm:VerifyViewModel">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+
+    <!-- ==================== 拖拽区 ==================== -->
+    <Border Grid.Row="0" Name="DropArea" Classes="dropzone"
+            Classes.compact="{Binding HasSources}">
+      <Panel>
+        <Rectangle Name="Dash"
+                   Stroke="{DynamicResource DropBorder}"
+                   StrokeThickness="1.5"
+                   StrokeDashArray="6,4"
+                   RadiusX="13" RadiusY="13" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"
+                    Margin="150,12">
+          <TextBlock Text="{Binding DropHint}" HorizontalAlignment="Center"
+                     FontWeight="Medium" FontSize="13" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Loc[DropSub]}" Classes="muted" FontSize="11.5"
+                     HorizontalAlignment="Center" IsVisible="{Binding !HasSources}" />
+        </StackPanel>
+        <Button Classes="link" Content="{Binding Loc[SelectFolder]}"
+                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                Click="OnPickFolderClick" />
+      </Panel>
+    </Border>
+
+    <!-- ==================== 已加载文件 ==================== -->
+    <Border Grid.Row="1" Classes="card" Padding="12,10,12,4" IsVisible="{Binding HasSources}">
+      <StackPanel Spacing="7">
+        <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Sources}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ChecksumSourceItem">
+                <Border Classes="tag" Margin="0,0,8,6" Padding="10,5">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="Medium"
+                                 MaxWidth="340" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding Tooltip}" />
+                      <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="10.5" />
+                    </StackPanel>
+                    <Button Classes="icon" Content="✕" ToolTip.Tip="{Binding $parent[UserControl].((vm:VerifyViewModel)DataContext).Loc[Remove]}"
+                            Command="{Binding $parent[UserControl].((vm:VerifyViewModel)DataContext).RemoveSourceCommand}"
+                            CommandParameter="{Binding}" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+
+    <!-- ==================== 结果列表 ==================== -->
+    <Border Grid.Row="2" Classes="card" Padding="10,10,10,6">
+      <Grid RowDefinitions="Auto,*" RowSpacing="6">
+
+        <Grid Grid.Row="0" ColumnDefinitions="30,*,170" ColumnSpacing="10"
+              Margin="12,2,12,4" IsVisible="{Binding HasResults}">
+          <TextBlock Grid.Column="1" Text="{Binding Loc[ColumnFile]}" Classes="h2" FontSize="11" />
+          <TextBlock Grid.Column="2" Text="{Binding Loc[ColumnStatus]}" Classes="h2" FontSize="11" />
+        </Grid>
+
+        <Panel Grid.Row="1">
+          <ListBox ItemsSource="{Binding Results}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:VerifyResultItem">
+                <Border Classes="row">
+                  <Grid ColumnDefinitions="30,*,170" ColumnSpacing="10">
+                    <TextBlock Grid.Column="0" Text="{Binding StatusGlyph}"
+                               Foreground="{Binding StatusBrush}"
+                               FontWeight="Bold" FontSize="14"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                      <TextBlock Text="{Binding FileName}" FontSize="12.5"
+                                 TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Tooltip}" />
+                      <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10.5"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <!--
+                      用 Grid 而不是 Panel：Panel 会用无限宽度测量子元素。
+                      进度条自绘（Border + ScaleTransform）——Avalonia 的 ProgressBar
+                      在非约束宽度下会把指示器宽度写死成固定值，导致行内条尺寸失真。
+                    -->
+                    <Grid Grid.Column="2" ColumnDefinitions="*,Auto" ColumnSpacing="8"
+                          VerticalAlignment="Center" ClipToBounds="True">
+                      <!-- 校验中：行内进度条 -->
+                      <Grid Grid.Column="0" Height="6" VerticalAlignment="Center"
+                            IsVisible="{Binding IsVerifying}">
+                        <Border Classes="inlinetrack" />
+                        <Border Classes="inlinefill" RenderTransformOrigin="0,0">
+                          <Border.RenderTransform>
+                            <ScaleTransform ScaleX="{Binding Progress, Converter={StaticResource Pct}}" />
+                          </Border.RenderTransform>
+                        </Border>
+                      </Grid>
+
+                      <TextBlock Grid.Column="1" Text="{Binding ProgressText}"
+                                 Classes="mono progressnum" FontSize="11"
+                                 MinWidth="30" TextAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 IsVisible="{Binding IsVerifying}" />
+
+                      <!-- 其余状态：文字，横跨整列 -->
+                      <TextBlock Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding StatusText}"
+                                 Foreground="{Binding StatusBrush}" FontWeight="Medium"
+                                 FontSize="12" VerticalAlignment="Center"
+                                 IsVisible="{Binding ShowStatusText}" />
+                    </Grid>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
+                     Text="{Binding Loc[EmptyResults]}" Classes="muted"
+                     IsVisible="{Binding !HasResults}" />
+        </Panel>
+
+      </Grid>
+    </Border>
+
+    <!-- ==================== 进度（仅运行中显示；终止/空闲时整条隐藏） ==================== -->
+    <Border Grid.Row="3" Classes="card" Padding="14,10" IsVisible="{Binding IsRunning}">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+        <ProgressBar Grid.Column="0" Minimum="0" Maximum="100" Value="{Binding Progress}"
+                     VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding ProgressPercentText}"
+                   Classes="mono" Foreground="{DynamicResource Accent}"
+                   FontWeight="SemiBold" VerticalAlignment="Center"
+                   MinWidth="42" TextAlignment="Right" />
+        <Button Grid.Column="2" Classes="danger compact" Content="{Binding Loc[Stop]}"
+                Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" />
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>

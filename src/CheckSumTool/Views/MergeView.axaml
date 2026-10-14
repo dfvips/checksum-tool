@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CheckSumTool.ViewModels"
+             x:Class="CheckSumTool.Views.MergeView"
+             x:DataType="vm:MergeViewModel">
+
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+
+    <!-- ==================== 拖拽区 ==================== -->
+    <Border Grid.Row="0" Name="DropArea" Classes="dropzone" MinHeight="88"
+            Classes.compact="{Binding HasFiles}">
+      <Panel>
+        <Rectangle Name="Dash"
+                   Stroke="{DynamicResource DropBorder}"
+                   StrokeThickness="1.5"
+                   StrokeDashArray="6,4"
+                   RadiusX="13" RadiusY="13" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"
+                    Margin="150,12">
+          <TextBlock Text="{Binding Loc[MergeDropHint]}" HorizontalAlignment="Center"
+                     FontWeight="Medium" FontSize="13" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Loc[DropSub]}" Classes="muted" FontSize="11.5"
+                     HorizontalAlignment="Center" IsVisible="{Binding !HasFiles}" />
+        </StackPanel>
+        <Button Classes="link" Content="{Binding Loc[SelectFolder]}"
+                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                Click="OnPickFolderClick" />
+      </Panel>
+    </Border>
+
+    <!-- ==================== 文件列表 ==================== -->
+    <Border Grid.Row="1" Classes="card" Padding="12" MinHeight="180">
+      <Panel>
+        <ListBox ItemsSource="{Binding Files}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChecksumSourceItem">
+              <Border Classes="row">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding FileName}" FontSize="12.5"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Tooltip}" />
+                    <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="10.5" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="icon" Content="✕"
+                          ToolTip.Tip="{Binding $parent[UserControl].((vm:MergeViewModel)DataContext).Loc[Remove]}"
+                          Command="{Binding $parent[UserControl].((vm:MergeViewModel)DataContext).RemoveFileCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
+                   Text="{Binding Loc[EmptyMergeFiles]}" Classes="muted"
+                   IsVisible="{Binding !HasFiles}" />
+      </Panel>
+    </Border>
+
+    <!-- ==================== 输出设置 ==================== -->
+    <Border Grid.Row="2" Classes="card" Padding="14,12">
+      <!-- IsSharedSizeScope + SharedSizeGroup：两行标签列取较宽者，避免长文案被截断 -->
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="12" Grid.IsSharedSizeScope="True">
+        <!-- 文件名 -->
+        <Grid Grid.Row="0" ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="MergeLabel" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="{Binding Loc[FileName]}" Classes="h2"
+                     VerticalAlignment="Center" />
+          <TextBox Grid.Column="1" Text="{Binding OutputBaseName}" MaxLength="120"
+                   Watermark="{Binding Loc[NameWatermark]}"
+                   VerticalAlignment="Center"
+                   IsEnabled="{Binding !IsMerging}"
+                   Classes.locked="{Binding IsMerging}"
+                   ToolTip.Tip="{Binding OutputTooltip}" />
+        </Grid>
+
+        <!-- 合并选项 -->
+        <Grid Grid.Row="1" ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="MergeLabel" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="{Binding Loc[SettingsMergeOptions]}" Classes="h2"
+                     VerticalAlignment="Center" />
+          <!-- 两个选项排在同一行，横向铺开 -->
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20"
+                      IsEnabled="{Binding !IsMerging}">
+            <CheckBox Content="{Binding Loc[SettingsMergeDedup]}"
+                      IsChecked="{Binding Settings.MergeDeduplicate}" />
+            <CheckBox Content="{Binding Loc[SettingsMergeSort]}"
+                      IsChecked="{Binding Settings.MergeSort}" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>
