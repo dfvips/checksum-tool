@@ -1,3 +1,5 @@
+简体中文 | [English](README.en.md) 
+
 # 文件校验工具
 
 一个基于 **.NET 10 + Avalonia UI** 的跨平台桌面工具，用于生成、校验与合并校验文件。
