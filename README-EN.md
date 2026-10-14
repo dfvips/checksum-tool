@@ -1,3 +1,5 @@
+English | [简体中文](README.md) 
+
 # File Checksum Tool
 
 A cross-platform desktop tool built with **.NET 10 + Avalonia UI** for generating, verifying and merging checksum files.
