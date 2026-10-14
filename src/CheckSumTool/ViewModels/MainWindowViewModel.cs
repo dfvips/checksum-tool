@@ -35,6 +35,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 RefreshLocalizedOptions();
                 OnPropertyChanged(string.Empty);
+
+                // 语言变化后同步 Windows「打开方式」里的程序名
+                if (e.PropertyName == nameof(Loc.Language))
+                {
+                    FileAssociation.EnsureRegistered();
+                }
             }
         };
 

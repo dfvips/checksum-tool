@@ -16,11 +16,12 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Windows 首次运行即把 .crc64 / .md5 关联到本程序（写 HKCU，无需管理员）
-            FileAssociation.EnsureRegistered();
-
             var vm = new MainWindowViewModel();
             vm.ApplyTheme(vm.ThemeMode);
+
+            // 语言已按设置初始化，此时把全部校验文件扩展名关联到本程序（写 HKCU，无需管理员），
+            // 「打开方式」里显示的程序名与界面同款
+            FileAssociation.EnsureRegistered();
 
             var window = new MainWindow { DataContext = vm };
             desktop.MainWindow = window;

@@ -1,5 +1,7 @@
 # File Checksum Tool
 
+简体中文 | [English](README.md)
+
 A cross-platform desktop tool built with **.NET 10 + Avalonia UI** for generating, verifying and merging checksum files.
 It supports CRC64, MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512 and CRC-32 (both `.crc32` and `.sfv`), and is fully interoperable with every format HashCheck understands.
 Runs on **Windows / macOS / Linux** with a modern UI that follows the system light/dark mode, offers manual theme switching, and ships with multi-language support including automatic detection of the system language.
@@ -88,11 +90,13 @@ Download the archive for your platform from [Releases](../../releases). All are 
 
 ### First Run
 
-**Windows file association** — on first launch the app automatically registers `.crc64` and `.md5` as associable extensions
-(writes only to the current user's registry; no administrator privileges required). After registration:
+**Windows file association** — on first launch the app automatically registers every checksum file
+extension as associable (`.crc64` / `.md5` / `.sha1` / `.sha256` / `.sha384` / `.sha512` /
+`.sha3-256` / `.sha3-384` / `.sha3-512` / `.crc32` / `.sfv`; writes only to the current user's
+registry; no administrator privileges required). After registration:
 
-- choose ChecksumTool in "Default apps" or "Open with" to permanently assign these two extensions to it;
-- **double-click a `.crc64` / `.md5` file** and the app starts, enters the verify panel and verifies immediately;
+- choose the app in "Default apps" or "Open with" to permanently assign these extensions to it;
+- **double-click any checksum file** and the app starts, enters the verify panel and verifies immediately;
 - it can also be invoked from the command line: `"File Checksum Tool.exe" --verify "D:\checksums.crc64"`.
 
 **Windows** — unzip and double-click `File Checksum Tool.exe`.
