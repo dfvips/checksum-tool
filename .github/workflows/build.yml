@@ -176,9 +176,49 @@ jobs:
             <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
             <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+            <!-- 声明可打开的校验文件；Alternate 不抢走用户现有的默认打开方式。 -->
+            <key>CFBundleDocumentTypes</key>
+            <array>
+              <dict>
+                <key>CFBundleTypeName</key><string>校验文件</string>
+                <key>CFBundleTypeRole</key><string>Viewer</string>
+                <key>LSHandlerRank</key><string>Alternate</string>
+                <key>LSItemContentTypes</key>
+                <array>
+                  <string>io.github.checksumtool.crc64</string>
+                  <string>io.github.checksumtool.md5</string>
+                  <string>io.github.checksumtool.sha1</string>
+                  <string>io.github.checksumtool.sha256</string>
+                  <string>io.github.checksumtool.sha384</string>
+                  <string>io.github.checksumtool.sha512</string>
+                  <string>io.github.checksumtool.sha3-256</string>
+                  <string>io.github.checksumtool.sha3-384</string>
+                  <string>io.github.checksumtool.sha3-512</string>
+                  <string>io.github.checksumtool.crc32</string>
+                  <string>io.github.checksumtool.sfv</string>
+                </array>
+              </dict>
+            </array>
+            <key>UTExportedTypeDeclarations</key>
+            <array>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.crc64</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>crc64</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.md5</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>md5</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha1</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha1</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha256</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha256</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha384</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha384</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha512</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha512</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha3-256</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha3-256</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha3-384</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha3-384</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sha3-512</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sha3-512</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.crc32</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>crc32</string></array></dict></dict>
+              <dict><key>UTTypeIdentifier</key><string>io.github.checksumtool.sfv</string><key>UTTypeConformsTo</key><array><string>public.plain-text</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>sfv</string></array></dict></dict>
+            </array>
           </dict>
           </plist>
           PLIST
+
+          # 校验文档类型注册，避免生成无效 Info.plist 后仍进入签名/打包。
+          plutil -lint "${APP}/Contents/Info.plist"
 
           # ---------- 导入签名证书到临时钥匙串 ----------
           SIGN_IDENTITY="-"

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using CheckSumTool.Services;
 using CheckSumTool.ViewModels;
 using CheckSumTool.Views;
@@ -27,16 +28,74 @@ public partial class App : Application
             desktop.MainWindow = window;
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-            // 由文件关联或 --verify 传入的校验文件：直接进入校验面板并开始
-            var files = CommandLine.ExtractChecksumFiles(Environment.GetCommandLineArgs().Skip(1));
-            if (files.Count > 0)
+            // macOS Finder 通过应用激活事件传文件，而不是命令行参数。
+            // 订阅发生在窗口显示前，也能接住首次启动时的 openFiles 事件。
+            var pendingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool windowOpened = false;
+
+            void StartPendingVerification()
             {
+                if (!windowOpened || vm.Verify.IsRunning || pendingFiles.Count == 0)
+                {
+                    return;
+                }
+
+                var files = pendingFiles.ToArray();
+                pendingFiles.Clear();
                 vm.SelectedTabIndex = 0;
                 vm.Verify.AddFiles(files);
-
-                // 等窗口显示后再启动，保证进度与状态更新可见
-                window.Opened += (_, _) => vm.Verify.StartCommand.Execute(null);
+                if (vm.Verify.StartCommand.CanExecute(null))
+                {
+                    vm.Verify.StartCommand.Execute(null);
+                }
             }
+
+            void QueueFiles(IEnumerable<string> paths)
+            {
+                foreach (string file in CommandLine.ExtractChecksumFiles(paths))
+                {
+                    pendingFiles.Add(file);
+                }
+
+                if (pendingFiles.Count > 0)
+                {
+                    Dispatcher.UIThread.Post(StartPendingVerification);
+                }
+            }
+
+            // 已运行时再次从 Finder「打开方式」打开，也进入校验；运行中的任务结束后接续处理。
+            if (OperatingSystem.IsMacOS()
+                && TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activation)
+            {
+                activation.Activated += (_, e) =>
+                {
+                    if (e is FileActivatedEventArgs fileEvent)
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            QueueFiles(fileEvent.Files.Select(file => file.Path.LocalPath));
+                            window.Activate();
+                        });
+                    }
+                };
+            }
+
+            vm.Verify.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(vm.Verify.IsRunning) && !vm.Verify.IsRunning)
+                {
+                    Dispatcher.UIThread.Post(StartPendingVerification);
+                }
+            };
+
+            window.Opened += (_, _) =>
+            {
+                windowOpened = true;
+                StartPendingVerification();
+            };
+
+            // Windows 文件关联与显式 --verify 仍走命令行。
+            QueueFiles(Environment.GetCommandLineArgs().Skip(1));
         }
 
         base.OnFrameworkInitializationCompleted();

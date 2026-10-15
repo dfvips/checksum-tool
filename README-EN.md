@@ -101,7 +101,7 @@ registry; no administrator privileges required). After registration:
 
 **Windows** — unzip and double-click `File Checksum Tool.exe`.
 
-**macOS** — unzip to get `File Checksum Tool.dmg`, mount it and drag `File Checksum Tool.app` to "Applications". If you see "damaged" or "cannot verify developer", click "Done", then click "Allow Anyway" in System Settings → Privacy & Security → Security, or run in Terminal:
+**macOS** — unzip to get `File Checksum Tool.dmg`, mount it and drag `File Checksum Tool.app` to "Applications". In Finder, right-click a supported checksum file and select "Open With" → "File Checksum Tool" to start verifying immediately. To make double-click open this app too, select it under Finder "Get Info" → "Open with" and click "Change All". Existing default apps are not replaced automatically. If you see "damaged" or "cannot verify developer", click "Done", then click "Allow Anyway" in System Settings → Privacy & Security → Security, or run in Terminal:
 
 ```bash
 xattr -dr com.apple.quarantine "~/Downloads/File Checksum Tool.dmg"
