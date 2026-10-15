@@ -3,7 +3,7 @@ English | [简体中文](README.md)
 # File Checksum Tool
 
 A cross-platform desktop tool built with **.NET 10 + Avalonia UI** for generating, verifying and merging checksum files.
-It supports CRC64, MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512 and CRC-32 (both `.crc32` and `.sfv`), and is fully interoperable with every format HashCheck understands.
+It supports CRC-64, MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512 and CRC-32 (both `.crc32` and `.sfv`), and is fully interoperable with every format HashCheck understands.
 Runs on **Windows / macOS / Linux** with a modern UI that follows the system light/dark mode, offers manual theme switching, and ships with multi-language support including automatic detection of the system language.
 
 <p align="center">

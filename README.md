@@ -3,7 +3,7 @@
 # 文件校验工具
 
 一个基于 **.NET 10 + Avalonia UI** 的跨平台桌面工具，用于生成、校验与合并校验文件。
-支持 CRC64、MD5、SHA-1、SHA-256、SHA-384、SHA-512、SHA3-256、SHA3-384、SHA3-512 和 CRC-32（含`.crc32` 和 `.sfv`），HashCheck 支持的格式均支持互认。
+支持 CRC-64、MD5、SHA-1、SHA-256、SHA-384、SHA-512、SHA3-256、SHA3-384、SHA3-512 和 CRC-32（含`.crc32` 和 `.sfv`），HashCheck 支持的格式均支持互认。
 支持 **Windows / macOS / Linux**，界面现代化，自动跟随系统深浅色，也可一键切换，支持多语言和跟随系统切换已适配语言。
 
 <p align="center">
